@@ -157,8 +157,49 @@ public class MainActivity extends AppCompatActivity {
             textEnd.setText(formatTime(newEnd));
         });
 
-        seekBarStart.setOnSeekBarChangeListener(createSeekBarListener(textStart));
-        seekBarEnd.setOnSeekBarChangeListener(createSeekBarListener(textEnd));
+        seekBarStart.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    textStart.setText(formatTime(progress));
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                videoView.pause(); // 👉 Tạm dừng video khi bắt đầu kéo
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int startMs = seekBar.getProgress();
+                videoView.seekTo(startMs);
+                textCurrentTime.setText(formatTime(startMs));
+
+            }
+        });
+
+        seekBarEnd.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    textEnd.setText(formatTime(progress));
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+                videoView.pause(); // 👉 Tạm dừng video khi người dùng kéo seekBarEnd
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int startMs = seekBar.getProgress();
+                videoView.seekTo(startMs);
+                textCurrentTime.setText(formatTime(startMs));
+            }
+        });
+
     }
 
     private void seekByFrame(int deltaMs) {
