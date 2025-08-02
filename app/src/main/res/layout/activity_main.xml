@@ -1,34 +1,50 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:gravity="center"
-    android:layout_height="match_parent">
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/pickVideoBtn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Chọn video" />
 
     <VideoView
         android:id="@+id/videoView"
         android:layout_width="match_parent"
         android:layout_height="200dp"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginTop="16dp" />
 
-    <Button
-        android:id="@+id/btnPick"
+    <TextView
+        android:id="@+id/startText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Chọn video" />
+        android:text="Start: 0s"
+        android:layout_marginTop="12dp"/>
+
+    <SeekBar
+        android:id="@+id/startSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
+
+    <TextView
+        android:id="@+id/endText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="End: 0s"
+        android:layout_marginTop="12dp"/>
+
+    <SeekBar
+        android:id="@+id/endSeekBar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <Button
-        android:id="@+id/btnTrim"
-        android:layout_width="wrap_content"
+        android:id="@+id/cutBtn"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="Cắt video"
-        android:layout_marginTop="16dp" />
-
-    <Button
-        android:id="@+id/btnPlayOutput"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Xem video đã cắt"
-        android:layout_marginTop="16dp" />
+        android:layout_marginTop="20dp"/>
 </LinearLayout>

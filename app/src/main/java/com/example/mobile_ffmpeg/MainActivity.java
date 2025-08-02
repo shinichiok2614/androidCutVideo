@@ -3,142 +3,184 @@ package com.example.mobile_ffmpeg;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.media.MediaMetadataRetriever;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.util.Log;
+import android.provider.OpenableColumns;
 import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.arthenica.mobileffmpeg.FFmpeg;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REQUEST_PERMISSION = 123;
-    private Uri selectedVideoUri;
-    private File inputFile, outputFile;
-    private VideoView videoView;
+    private static final int REQUEST_VIDEO_PICK = 1;
+    private static final int REQUEST_PERMISSIONS = 100;
 
-    private final ActivityResultLauncher<Intent> videoPickerLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-                    selectedVideoUri = result.getData().getData();
-                    playSelectedVideo(selectedVideoUri);
-                    copyVideoToInputFile(selectedVideoUri);
-                }
-            });
+    private VideoView videoView;
+    private Button pickVideoBtn, cutBtn;
+    private SeekBar startSeekBar, endSeekBar;
+    private TextView startText, endText;
+
+    private Uri selectedVideoUri;
+    private int videoDuration = 0;
+
+    private int startMs = 0;
+    private int endMs = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_main); // đảm bảo bạn tạo layout như hướng dẫn bên dưới
 
-        Button btnPick = findViewById(R.id.btnPick);
-        Button btnTrim = findViewById(R.id.btnTrim);
-        Button btnPlayOutput = findViewById(R.id.btnPlayOutput);
         videoView = findViewById(R.id.videoView);
+        pickVideoBtn = findViewById(R.id.pickVideoBtn);
+        cutBtn = findViewById(R.id.cutBtn);
+        startSeekBar = findViewById(R.id.startSeekBar);
+        endSeekBar = findViewById(R.id.endSeekBar);
+        startText = findViewById(R.id.startText);
+        endText = findViewById(R.id.endText);
 
-        inputFile = new File(getExternalFilesDir(null), "input.mp4");
-        outputFile = new File(getExternalFilesDir(null), "output_trimmed.mp4");
+        pickVideoBtn.setOnClickListener(v -> checkPermissionAndPickVideo());
 
-        btnPick.setOnClickListener(v -> {
-            if (checkPermission()) {
-                openVideoPicker();
-            } else {
-                requestPermissions(new String[]{Manifest.permission.READ_MEDIA_VIDEO}, REQUEST_PERMISSION);
-            }
-        });
-
-        btnTrim.setOnClickListener(v -> {
-            if (selectedVideoUri != null && inputFile.exists()) {
+        cutBtn.setOnClickListener(v -> {
+            if (selectedVideoUri != null) {
                 trimVideo();
             } else {
-                Toast.makeText(this, "Vui lòng chọn video trước!", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        btnPlayOutput.setOnClickListener(v -> {
-            if (outputFile.exists()) {
-                videoView.setVideoURI(Uri.fromFile(outputFile));
-                videoView.start();
-            } else {
-                Toast.makeText(this, "Chưa có video đã cắt!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Chọn video trước!", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private void openVideoPicker() {
+    private void checkPermissionAndPickVideo() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.READ_MEDIA_VIDEO},
+                        REQUEST_PERMISSIONS);
+                return;
+            }
+        }
+        pickVideo();
+    }
+
+    private void pickVideo() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.setType("video/*");
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        videoPickerLauncher.launch(intent);
+        startActivityForResult(intent, REQUEST_VIDEO_PICK);
     }
 
-    private boolean checkPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_VIDEO) == PackageManager.PERMISSION_GRANTED;
-        } else {
-            return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
-        }
-    }
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_VIDEO_PICK && resultCode == RESULT_OK && data != null) {
+            selectedVideoUri = data.getData();
+            videoView.setVideoURI(selectedVideoUri);
+            videoView.start();
 
-    private void playSelectedVideo(Uri uri) {
-        videoView.setVideoURI(uri);
-        videoView.start();
-    }
-
-    private void copyVideoToInputFile(Uri uri) {
-        try (InputStream in = getContentResolver().openInputStream(uri);
-             OutputStream out = new FileOutputStream(inputFile)) {
-            byte[] buffer = new byte[4096];
-            int len;
-            while ((len = in.read(buffer)) > 0) {
-                out.write(buffer, 0, len);
+            MediaMetadataRetriever retriever = new MediaMetadataRetriever();
+            retriever.setDataSource(this, selectedVideoUri);
+            String durationStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+            videoDuration = Integer.parseInt(durationStr);
+            try {
+                retriever.release();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "Lỗi khi sao chép video!", Toast.LENGTH_SHORT).show();
+
+            startSeekBar.setMax(videoDuration);
+            endSeekBar.setMax(videoDuration);
+            endSeekBar.setProgress(videoDuration);
+            endMs = videoDuration;
+
+            startSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    startMs = progress;
+                    startText.setText("Start: " + (progress / 1000) + "s");
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
+
+            endSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    endMs = progress;
+                    endText.setText("End: " + (progress / 1000) + "s");
+                }
+                @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+                @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+            });
         }
     }
 
     private void trimVideo() {
-        String cmd = String.format("-y -i \"%s\" -ss %d -t %d -c copy \"%s\"",
-                inputFile.getAbsolutePath(), 5, 10, outputFile.getAbsolutePath());
+        try {
+            // copy input uri to file
+            File inputFile = createTempFileFromUri(selectedVideoUri);
+            File outputFile = new File(getExternalFilesDir(null), "trimmed_output.mp4");
 
-        Toast.makeText(this, "Đang cắt video...", Toast.LENGTH_SHORT).show();
+            int duration = endMs - startMs;
+            if (duration <= 0) {
+                Toast.makeText(this, "Thời gian không hợp lệ!", Toast.LENGTH_SHORT).show();
+                return;
+            }
 
-        new Thread(() -> {
-            int rc = FFmpeg.execute(cmd);
-            runOnUiThread(() -> {
-                if (rc == 0) {
-                    Toast.makeText(this, "🎉 Cắt video thành công!", Toast.LENGTH_LONG).show();
+            String cmd = "-y -i " + inputFile.getAbsolutePath()
+                    + " -ss " + (startMs / 1000)
+                    + " -t " + (duration / 1000)
+                    + " -c copy " + outputFile.getAbsolutePath();
+
+            Toast.makeText(this, "Đang xử lý...", Toast.LENGTH_SHORT).show();
+
+            FFmpeg.executeAsync(cmd, (executionId, returnCode) -> {
+                if (returnCode == 0) {
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Đã lưu: " + outputFile.getAbsolutePath(), Toast.LENGTH_LONG).show()
+                    );
                 } else {
-                    Toast.makeText(this, "❌ Lỗi cắt video!", Toast.LENGTH_LONG).show();
-                    Log.e("FFmpeg", "Return code: " + rc);
+                    runOnUiThread(() ->
+                            Toast.makeText(this, "Lỗi cắt video!", Toast.LENGTH_SHORT).show()
+                    );
                 }
             });
-        }).start();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        if (requestCode == REQUEST_PERMISSION && grantResults.length > 0 &&
-                grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            openVideoPicker();
-        } else {
-            Toast.makeText(this, "Cần cấp quyền để chọn video!", Toast.LENGTH_SHORT).show();
+    private File createTempFileFromUri(Uri uri) throws Exception {
+        String fileName = "temp_input.mp4";
+        Cursor returnCursor = getContentResolver().query(uri, null, null, null, null);
+        if (returnCursor != null && returnCursor.moveToFirst()) {
+            fileName = returnCursor.getString(returnCursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME));
+            returnCursor.close();
         }
+
+        File file = new File(getCacheDir(), fileName);
+        try (InputStream inputStream = getContentResolver().openInputStream(uri);
+             FileOutputStream outputStream = new FileOutputStream(file)) {
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buf)) > 0) {
+                outputStream.write(buf, 0, len);
+            }
+        }
+        return file;
     }
 }
