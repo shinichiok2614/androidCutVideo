@@ -1,52 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootLayout"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:padding="16dp">
 
-    <LinearLayout android:orientation="vertical"
+    <com.google.android.exoplayer2.ui.StyledPlayerView
+        android:id="@+id/playerView"
         android:layout_width="match_parent"
+        android:layout_height="300dp"
+        app:show_timeout="3000"
+        app:use_controller="true" />
+
+    <Button
+        android:id="@+id/btnSelectVideo"
+        android:layout_below="@id/playerView"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:padding="16dp">
-
-        <Button
-            android:id="@+id/pickButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Chọn Video" />
-
-        <VideoView
-            android:id="@+id/videoView"
-            android:layout_width="match_parent"
-            android:layout_height="200dp"
-            android:layout_marginTop="16dp" />
-
-        <TextView
-            android:id="@+id/startTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Bắt đầu: 00:00" />
-
-        <SeekBar
-            android:id="@+id/startSeekBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <TextView
-            android:id="@+id/endTime"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Kết thúc: 00:00" />
-
-        <SeekBar
-            android:id="@+id/endSeekBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <Button
-            android:id="@+id/cutButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Cắt Video"
-            android:layout_marginTop="16dp" />
-    </LinearLayout>
-</ScrollView>
+        android:text="Chọn video"
+        android:layout_marginTop="20dp"
+        android:layout_centerHorizontal="true" />
+</RelativeLayout>
