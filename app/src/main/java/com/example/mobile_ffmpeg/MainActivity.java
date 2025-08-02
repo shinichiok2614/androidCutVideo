@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.OpenableColumns;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,6 +39,8 @@ public class MainActivity extends AppCompatActivity {
     private SeekBar seekBarStart, seekBarEnd;
     private TextView textStart, textEnd, textCurrentTime;
     private Button btnCut, btnPick, btnBackFrame, btnForwardFrame;
+    private EditText editFileName;
+
 
     private Uri selectedVideoUri;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -49,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         requestPermissions();
+        editFileName = findViewById(R.id.editFileName);
 
         videoView = findViewById(R.id.videoView);
         seekBarStart = findViewById(R.id.seekBarStart);
@@ -196,8 +200,13 @@ public class MainActivity extends AppCompatActivity {
         File inputFile = saveUriToTempFile(uri);
         if (inputFile == null) return;
 
-        String outputPath = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES),
-                "output_" + System.currentTimeMillis() + ".mp4").getAbsolutePath();
+        String fileNameInput = editFileName.getText().toString().trim();
+        String outputFileName = fileNameInput.isEmpty() ? "output_" + System.currentTimeMillis() + ".mp4"
+                : fileNameInput + ".mp4";
+
+        File outputFile = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES), outputFileName);
+        String outputPath = outputFile.getAbsolutePath();
+
 
         String cmd = String.format(Locale.US,
                 "-i %s -ss %.2f -to %.2f -c copy %s",
