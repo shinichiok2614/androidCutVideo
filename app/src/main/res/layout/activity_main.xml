@@ -2,13 +2,33 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:orientation="vertical"
+    android:padding="16dp"
     android:gravity="center"
-    android:padding="24dp"
     android:layout_height="match_parent">
+
+    <VideoView
+        android:id="@+id/videoView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:layout_marginBottom="16dp" />
+
+    <Button
+        android:id="@+id/btnPick"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Chọn video" />
 
     <Button
         android:id="@+id/btnTrim"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Cắt video" />
+        android:text="Cắt video"
+        android:layout_marginTop="16dp" />
+
+    <Button
+        android:id="@+id/btnPlayOutput"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Xem video đã cắt"
+        android:layout_marginTop="16dp" />
 </LinearLayout>
