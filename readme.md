@@ -35,7 +35,7 @@ Hướng dẫn này giúp bạn tích hợp thư viện `mobile-ffmpeg-full-4.4.
 
 1. Vào `File > Project Structure > Dependencies`
 2. Chọn **All Modules**, chọn module `:app`
-3. Nhấn nút `+` → chọn **Jar/AAR Dependency**
+3. Nhấn nút `+` → chọn **Jar/AAR Dependency** (có thể tìm kiếm online (nếu có) nếu chọn Library dependency: ví dụ tìm exoplayer > search, chọn đúng phiên bản)
 4. Chọn file:
    ```
    libs/mobile-ffmpeg-full-4.4.LTS.aar
