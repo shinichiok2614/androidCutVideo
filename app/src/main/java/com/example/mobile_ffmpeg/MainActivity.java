@@ -200,6 +200,14 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        videoView.setOnTouchListener((v, event) -> {
+            if (!videoView.isPlaying()) {
+                videoView.start(); // Tiếp tục phát video
+            }
+            return true; // Ngăn sự kiện tiếp tục truyền đi
+        });
+
+
     }
 
     private void seekByFrame(int deltaMs) {
