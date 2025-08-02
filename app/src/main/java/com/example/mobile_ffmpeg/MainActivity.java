@@ -44,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView textStart, textEnd, textCurrentTime;
     private Button btnCut, btnPick, btnBackFrame, btnForwardFrame;
     private Button btnRewind5s, btnForward5s;
+    private Button btnEndRewind5s, btnEndForward5s, btnEndBackFrame, btnEndForwardFrame;
 
     private EditText editFileName;
 
@@ -61,6 +62,10 @@ public class MainActivity extends AppCompatActivity {
         editFileName = findViewById(R.id.editFileName);
         btnRewind5s = findViewById(R.id.btnRewind5s);
         btnForward5s = findViewById(R.id.btnForward5s);
+        btnEndRewind5s = findViewById(R.id.btnEndRewind5s);
+        btnEndForward5s = findViewById(R.id.btnEndForward5s);
+        btnEndBackFrame = findViewById(R.id.btnEndBackFrame);
+        btnEndForwardFrame = findViewById(R.id.btnEndForwardFrame);
 
         videoView = findViewById(R.id.videoView);
         seekBarStart = findViewById(R.id.seekBarStart);
@@ -120,6 +125,38 @@ public class MainActivity extends AppCompatActivity {
             videoView.seekTo(newStart);
             textStart.setText(formatTime(newStart));
         });
+        // Lùi 5s cho seekBarEnd
+        btnEndRewind5s.setOnClickListener(v -> {
+            int currentEnd = seekBarEnd.getProgress();
+            int newEnd = Math.max(currentEnd - 5000, seekBarStart.getProgress()); // không nhỏ hơn start
+            seekBarEnd.setProgress(newEnd);
+            textEnd.setText(formatTime(newEnd));
+        });
+
+// Tiến 5s cho seekBarEnd
+        btnEndForward5s.setOnClickListener(v -> {
+            int currentEnd = seekBarEnd.getProgress();
+            int newEnd = Math.min(currentEnd + 5000, videoDuration);
+            seekBarEnd.setProgress(newEnd);
+            textEnd.setText(formatTime(newEnd));
+        });
+
+// Lùi 1 frame (~33ms)
+        btnEndBackFrame.setOnClickListener(v -> {
+            int currentEnd = seekBarEnd.getProgress();
+            int newEnd = Math.max(currentEnd - 33, seekBarStart.getProgress()); // không nhỏ hơn start
+            seekBarEnd.setProgress(newEnd);
+            textEnd.setText(formatTime(newEnd));
+        });
+
+// Tiến 1 frame
+        btnEndForwardFrame.setOnClickListener(v -> {
+            int currentEnd = seekBarEnd.getProgress();
+            int newEnd = Math.min(currentEnd + 33, videoDuration);
+            seekBarEnd.setProgress(newEnd);
+            textEnd.setText(formatTime(newEnd));
+        });
+
         seekBarStart.setOnSeekBarChangeListener(createSeekBarListener(textStart));
         seekBarEnd.setOnSeekBarChangeListener(createSeekBarListener(textEnd));
     }
