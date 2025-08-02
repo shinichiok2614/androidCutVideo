@@ -1,85 +1,237 @@
-package com.example.mobile_ffmpeg;
+package com.example.myapplication;
 
+import android.Manifest;
+import android.app.Activity;
+import android.content.ContentResolver;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.os.Environment;
+import android.provider.OpenableColumns;
 import android.widget.Button;
+import android.widget.SeekBar;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
+import android.media.MediaMetadataRetriever;
+
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import com.google.android.exoplayer2.ExoPlayer;
-import com.google.android.exoplayer2.MediaItem;
-import com.google.android.exoplayer2.ui.StyledPlayerView;
+import androidx.core.app.ActivityCompat;
+
+import com.arthenica.mobileffmpeg.FFmpeg;
+
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.util.Locale;
+import android.os.Handler;
+import android.os.Looper;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int PICK_VIDEO_REQUEST = 1;
-    private ExoPlayer player;
-    private StyledPlayerView playerView;
-    private Button btnSelectVideo;
+    private static final int REQUEST_CODE_PERMISSIONS = 1001;
+    private VideoView videoView;
+    private SeekBar seekBarStart, seekBarEnd;
+    private TextView textStart, textEnd, textCurrentTime;
+    private Button btnCut, btnPick, btnBackFrame, btnForwardFrame;
+
+    private Uri selectedVideoUri;
+    private Handler handler = new Handler(Looper.getMainLooper());
+    private Runnable updateSeekBar;
+    private int videoDuration = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        requestPermissions();
 
-        playerView = findViewById(R.id.playerView);
-        btnSelectVideo = findViewById(R.id.btnSelectVideo);
+        videoView = findViewById(R.id.videoView);
+        seekBarStart = findViewById(R.id.seekBarStart);
+        seekBarEnd = findViewById(R.id.seekBarEnd);
+        textStart = findViewById(R.id.textStart);
+        textEnd = findViewById(R.id.textEnd);
+        textCurrentTime = findViewById(R.id.text_current_time);
+        btnCut = findViewById(R.id.btnCut);
+        btnPick = findViewById(R.id.btnPick);
+        btnBackFrame = findViewById(R.id.btnBackFrame);
+        btnForwardFrame = findViewById(R.id.btnForwardFrame);
 
-        setupPlayer();
+        btnPick.setOnClickListener(v -> openVideoPicker());
 
-        btnSelectVideo.setOnClickListener(v -> openVideoPicker());
+        btnCut.setOnClickListener(v -> {
+            if (selectedVideoUri != null) {
+                int startMs = seekBarStart.getProgress();
+                int endMs = seekBarEnd.getProgress();
+                if (endMs > startMs) {
+                    cutVideo(selectedVideoUri, startMs, endMs);
+                } else {
+                    Toast.makeText(this, "Thời gian kết thúc phải lớn hơn thời gian bắt đầu", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
 
-        // Nếu Android 13+ thì không cần xin quyền ở runtime nữa.
-        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-            requestPermissions(new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 100);
-        }
+        btnBackFrame.setOnClickListener(v -> seekByFrame(-500));
+        btnForwardFrame.setOnClickListener(v -> seekByFrame(500));
+
+        seekBarStart.setOnSeekBarChangeListener(createSeekBarListener(textStart));
+        seekBarEnd.setOnSeekBarChangeListener(createSeekBarListener(textEnd));
     }
 
-    private void setupPlayer() {
-        player = new ExoPlayer.Builder(this).build();
-        playerView.setPlayer(player);
+    private void seekByFrame(int deltaMs) {
+        int newPosition = videoView.getCurrentPosition() + deltaMs;
+        newPosition = Math.max(0, Math.min(newPosition, videoDuration));
+        videoView.pause();
+        videoView.seekTo(newPosition);
+        textCurrentTime.setText(formatTime(newPosition));
+    }
+
+    private SeekBar.OnSeekBarChangeListener createSeekBarListener(TextView timeView) {
+        return new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser) {
+                    videoView.pause();
+                    videoView.seekTo(progress);
+                    timeView.setText(formatTime(progress));
+                    textCurrentTime.setText(formatTime(progress));
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {
+                videoView.pause();
+            }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {
+                videoView.seekTo(seekBar.getProgress());
+                videoView.start();
+                handler.post(updateSeekBar);
+            }
+        };
     }
 
     private void openVideoPicker() {
         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
         intent.setType("video/*");
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
-        startActivityForResult(Intent.createChooser(intent, "Chọn video"), PICK_VIDEO_REQUEST);
+        pickVideoLauncher.launch(intent);
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    private final ActivityResultLauncher<Intent> pickVideoLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    selectedVideoUri = result.getData().getData();
+                    prepareVideo(selectedVideoUri);
+                }
+            }
+    );
 
-        if (requestCode == PICK_VIDEO_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            Uri videoUri = data.getData();
-            playVideo(videoUri);
+    private void prepareVideo(Uri uri) {
+        File file = saveUriToTempFile(uri);
+        if (file == null) return;
+
+        videoView.setVideoURI(Uri.fromFile(file));
+        videoView.setOnPreparedListener(mp -> {
+            videoDuration = videoView.getDuration();
+            seekBarStart.setMax(videoDuration);
+            seekBarEnd.setMax(videoDuration);
+            seekBarEnd.setProgress(videoDuration);
+
+            textStart.setText("00:00");
+            textEnd.setText(formatTime(videoDuration));
+
+            updateSeekBar = new Runnable() {
+                @Override
+                public void run() {
+                    if (videoView.isPlaying()) {
+                        int current = videoView.getCurrentPosition();
+                        textCurrentTime.setText(formatTime(current));
+                        handler.postDelayed(this, 500);
+                    }
+                }
+            };
+
+            videoView.start();
+            handler.post(updateSeekBar);
+        });
+    }
+
+    private File saveUriToTempFile(Uri uri) {
+        try {
+            ContentResolver resolver = getContentResolver();
+            String fileName = getFileName(uri);
+            File tempFile = new File(getCacheDir(), fileName);
+            InputStream input = resolver.openInputStream(uri);
+            FileOutputStream output = new FileOutputStream(tempFile);
+            byte[] buffer = new byte[4096];
+            int len;
+            while ((len = input.read(buffer)) != -1) {
+                output.write(buffer, 0, len);
+            }
+            input.close();
+            output.close();
+            return tempFile;
+        } catch (Exception e) {
+            e.printStackTrace();
+            Toast.makeText(this, "Lỗi khi đọc file", Toast.LENGTH_SHORT).show();
+            return null;
         }
     }
 
-    private void playVideo(Uri uri) {
-        MediaItem mediaItem = MediaItem.fromUri(uri);
-        player.setMediaItem(mediaItem);
-        player.prepare();
-        player.play();
+    private String getFileName(Uri uri) {
+        String result = "video.mp4";
+        if (uri.getScheme().equals("content")) {
+            try (Cursor cursor = getContentResolver().query(uri, null, null, null, null)) {
+                if (cursor != null && cursor.moveToFirst()) {
+                    int idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                    if (idx >= 0) result = cursor.getString(idx);
+                }
+            }
+        }
+        return result;
+    }
+
+    private void cutVideo(Uri uri, int startMs, int endMs) {
+        File inputFile = saveUriToTempFile(uri);
+        if (inputFile == null) return;
+
+        String outputPath = new File(getExternalFilesDir(Environment.DIRECTORY_MOVIES),
+                "output_" + System.currentTimeMillis() + ".mp4").getAbsolutePath();
+
+        String cmd = String.format(Locale.US,
+                "-i %s -ss %.2f -to %.2f -c copy %s",
+                inputFile.getAbsolutePath(),
+                startMs / 1000.0,
+                endMs / 1000.0,
+                outputPath
+        );
+
+        FFmpeg.executeAsync(cmd, (executionId, returnCode) -> {
+            if (returnCode == 0) {
+                runOnUiThread(() -> Toast.makeText(this, "Cắt video thành công: " + outputPath, Toast.LENGTH_LONG).show());
+            } else {
+                runOnUiThread(() -> Toast.makeText(this, "Lỗi khi cắt video", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    private String formatTime(int millis) {
+        int sec = millis / 1000;
+        int min = sec / 60;
+        sec %= 60;
+        return String.format(Locale.getDefault(), "%02d:%02d", min, sec);
+    }
+
+    private void requestPermissions() {
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE},
+                REQUEST_CODE_PERMISSIONS);
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-        if (player != null) {
-            player.pause();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (player != null) {
-            player.release();
-        }
+    protected void onPause() {
+        super.onPause();
+        handler.removeCallbacks(updateSeekBar);
     }
 }
