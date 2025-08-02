@@ -35,10 +35,16 @@ import android.os.Looper;
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_PERMISSIONS = 1001;
+    private static final int FRAME_TIME_MS = 500; // ~30fps
+    final int JUMP_TIME_MS = 5000; // 5 giây
+
+
     private VideoView videoView;
     private SeekBar seekBarStart, seekBarEnd;
     private TextView textStart, textEnd, textCurrentTime;
     private Button btnCut, btnPick, btnBackFrame, btnForwardFrame;
+    private Button btnRewind5s, btnForward5s;
+
     private EditText editFileName;
 
 
@@ -53,6 +59,8 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         requestPermissions();
         editFileName = findViewById(R.id.editFileName);
+        btnRewind5s = findViewById(R.id.btnRewind5s);
+        btnForward5s = findViewById(R.id.btnForward5s);
 
         videoView = findViewById(R.id.videoView);
         seekBarStart = findViewById(R.id.seekBarStart);
@@ -79,9 +87,39 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        btnBackFrame.setOnClickListener(v -> seekByFrame(-500));
-        btnForwardFrame.setOnClickListener(v -> seekByFrame(500));
+        btnBackFrame.setOnClickListener(v -> {
+            int currentStart = seekBarStart.getProgress();
+            int newStart = Math.max(currentStart - FRAME_TIME_MS, 0);
+            seekBarStart.setProgress(newStart);
+            videoView.seekTo(newStart);
+            textStart.setText(formatTime(newStart));
+        });
 
+        btnForwardFrame.setOnClickListener(v -> {
+            int currentStart = seekBarStart.getProgress();
+            int maxEnd = seekBarEnd.getProgress();
+            int newStart = Math.min(currentStart + FRAME_TIME_MS, maxEnd);
+            seekBarStart.setProgress(newStart);
+            videoView.seekTo(newStart);
+            textStart.setText(formatTime(newStart));
+        });
+
+        btnRewind5s.setOnClickListener(v -> {
+            int currentStart = seekBarStart.getProgress();
+            int newStart = Math.max(currentStart - JUMP_TIME_MS, 0);
+            seekBarStart.setProgress(newStart);
+            videoView.seekTo(newStart);
+            textStart.setText(formatTime(newStart));
+        });
+
+        btnForward5s.setOnClickListener(v -> {
+            int currentStart = seekBarStart.getProgress();
+            int maxEnd = seekBarEnd.getProgress(); // không vượt quá thời gian kết thúc
+            int newStart = Math.min(currentStart + JUMP_TIME_MS, maxEnd);
+            seekBarStart.setProgress(newStart);
+            videoView.seekTo(newStart);
+            textStart.setText(formatTime(newStart));
+        });
         seekBarStart.setOnSeekBarChangeListener(createSeekBarListener(textStart));
         seekBarEnd.setOnSeekBarChangeListener(createSeekBarListener(textEnd));
     }

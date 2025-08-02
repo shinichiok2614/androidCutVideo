@@ -40,17 +40,18 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
-    <SeekBar
-        android:id="@+id/seekBarEnd"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center">
-
+        <Button
+            android:id="@+id/btnRewind5s"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏪ -5s" />
         <Button
             android:id="@+id/btnBackFrame"
             android:layout_width="wrap_content"
@@ -62,7 +63,17 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="➡️" />
+
+        <Button
+            android:id="@+id/btnForward5s"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⏩ +5s" />
     </LinearLayout>
+    <SeekBar
+        android:id="@+id/seekBarEnd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 
     <Button
         android:id="@+id/btnPick"
